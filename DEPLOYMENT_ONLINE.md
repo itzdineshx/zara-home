@@ -40,7 +40,34 @@ Edit `backend/.env`:
 - Set `OPENROUTER_API_KEY`
 - Keep any AI model overrides you need
 
-## 3) Option A (Recommended): Managed MQTT Broker
+## 3) AI Model Configuration
+
+ZARA uses a production-grade two-tier AI strategy: Gemini Flash 2.0 (cloud) primary, Gemma E2B (local) fallback.
+
+### Gemini Flash 2.0 (Primary Cloud AI)
+
+**Requirement:** OpenRouter API key
+
+In `backend/.env`:
+```
+OPENROUTER_API_KEY=<your-api-key-from-openrouter.ai>
+OPENROUTER_MODEL=google/gemini-2.0-flash-001
+DEFAULT_MODE=smart
+```
+
+### Gemma E2B (Fallback Local AI)
+
+**Requirement:** None (built-in), ~2GB RAM for Ollama inference
+
+`backend/.env` (optional, defaults already set):
+```
+OLLAMA_MODEL=gemma2:2b
+OLLAMA_BASE_URL=http://localhost:11434
+```
+
+Backend automatically falls back to Gemma E2B if cloud times out or errors.
+
+## 4) Option A (Recommended): Managed MQTT Broker
 
 Use a managed broker (for example HiveMQ Cloud) so both backend and ESP32 can connect from anywhere without exposing your own broker port.
 
@@ -59,7 +86,7 @@ Start stack:
 docker compose --env-file deploy/.env.online -f docker-compose.online.yml up -d --build
 ```
 
-## 4) Option B: Self-Hosted Mosquitto on the VPS
+## 5) Option B: Self-Hosted Mosquitto on the VPS
 
 Create broker password file:
 
@@ -90,7 +117,7 @@ Create these DNS A records pointing to your VPS public IP:
 
 Caddy will automatically issue and renew TLS certificates.
 
-## 6) ESP32 Online Home Automation Settings
+## 7) ESP32 Online Home Automation Settings
 
 Update your firmware MQTT constants to match the broker you selected:
 

@@ -45,21 +45,34 @@ def _env_csv(name: str, default: str) -> list[str]:
 
 @dataclass(slots=True)
 class Settings:
+    """
+    ZARA configuration settings with production-grade AI routing.
+    
+    AI Architecture:
+    - Primary (online): Gemini Flash 2.0 via OpenRouter (fastest cloud AI)
+    - Fallback (local): Gemma E2B via Ollama (reliable local inference)
+    - Fallback (secondary): Secondary local model for non-English or large contexts
+    
+    The router tries online first for best quality and speed, falls back to local
+    on cloud timeout/error for resilience, and can run offline-only mode for testing.
+    """
     app_name: str = os.getenv("APP_NAME", "ZARA AI Backend")
     app_version: str = os.getenv("APP_VERSION", "0.1.0")
 
     default_mode: str = os.getenv("DEFAULT_MODE", "smart")
 
+    # OpenRouter: Gemini Flash 2.0 (primary cloud AI)
     openrouter_api_key: str = os.getenv("OPENROUTER_API_KEY", "")
     openrouter_base_url: str = os.getenv("OPENROUTER_BASE_URL", "https://openrouter.ai/api/v1")
-    openrouter_model: str = os.getenv("OPENROUTER_MODEL", "google/gemini-2.0-flash-001")
+    openrouter_model: str = os.getenv("OPENROUTER_MODEL", "google/gemini-2.0-flash-001")  # Gemini Flash 2.0
     openrouter_timeout_s: float = _env_float("OPENROUTER_TIMEOUT_S", 10.0)
     openrouter_temperature: float = _env_float("OPENROUTER_TEMPERATURE", 0.65)
     openrouter_max_tokens: int = _env_int("OPENROUTER_MAX_TOKENS", 720)
 
+    # Ollama: Local inference for fallback (when cloud unavailable)
     ollama_base_url: str = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
-    ollama_model: str = os.getenv("OLLAMA_MODEL", "phi3:mini")
-    ollama_fallback_model: str = os.getenv("OLLAMA_FALLBACK_MODEL", "gemma2:2b")
+    ollama_model: str = os.getenv("OLLAMA_MODEL", "gemma2:2b")  # Gemma E2B (primary local fallback)
+    ollama_fallback_model: str = os.getenv("OLLAMA_FALLBACK_MODEL", "gemma2:2b")  # Secondary local model
     ollama_timeout_s: float = _env_float("OLLAMA_TIMEOUT_S", 8.0)
     ollama_num_ctx: int = _env_int("OLLAMA_NUM_CTX", 2048)
     ollama_num_predict: int = _env_int("OLLAMA_NUM_PREDICT", 260)

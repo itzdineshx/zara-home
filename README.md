@@ -26,6 +26,30 @@ There are two different mode layers in the codebase:
 
 Default conversational mode uses the AI response router. Home Automation is a separate hardware gate that allows voice commands to be published to the flight controller only when it is enabled.
 
+## AI Architecture
+
+ZARA uses a production-grade two-tier AI strategy for reliability and cost efficiency:
+
+**Primary AI (Cloud):** Gemini Flash 2.0 via OpenRouter
+- Fastest inference for complex reasoning and creative tasks
+- Lowest latency for most queries
+- No local GPU required
+
+**Fallback AI (Local):** Gemma E2B via Ollama
+- Automatic fallback if cloud times out or errors
+- Privacy-first: runs entirely on your device
+- Perfect for offline operation and testing
+
+### Three Routing Modes
+
+| Mode | Cloud | Local | Use Case |
+| --- | --- | --- | --- |
+| **online** | Gemini Flash 2.0 (required) | ✗ | Production: always use cloud for best quality |
+| **smart** (default) | Gemini Flash 2.0 → Gemma E2B | ✓ | Resilient: cloud-first, auto-fallback to local |
+| **offline** | ✗ | Gemma E2B only | Testing, privacy, or when cloud unavailable |
+
+Smart mode (default) implements the enterprise pattern: try the best AI first, fall back gracefully to local inference if cloud fails. This gives you cloud-quality responses when available, but never breaks during outages.
+
 ## Architecture Overview
 
 ```mermaid

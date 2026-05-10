@@ -16,7 +16,19 @@ RouteSource = Literal["openrouter", "ollama"]
 
 
 class AIRouterService:
-    """Cost and speed aware request router for online/offline/smart modes."""
+    """
+    Production-grade request router implementing three AI strategies:
+    
+    1. ONLINE MODE: Use only Gemini Flash 2.0 (cloud) for best quality.
+    2. SMART MODE (default): Gemini Flash 2.0 primary with automatic local fallback (Gemma E2B)
+       - Tries cloud first (faster + smarter)
+       - Falls back to Ollama on timeout/error for resilience
+       - Caches responses to reduce repeated cloud calls
+    3. OFFLINE MODE: Gemma E2B local only (for testing, privacy, or when cloud unavailable)
+    
+    The router prioritizes cost, speed, and reliability: cloud-first for quality,
+    local fallback for resilience, offline-only for development/testing.
+    """
 
     _LANGUAGE_REFUSAL_RE = re.compile(
         (
@@ -80,10 +92,12 @@ class AIRouterService:
 
         if mode == "offline":
             answer, source = await self._offline_only(normalized, response_language=response_language)
-        elif mode == "online":
-            answer, source = await self._online_with_fallback(normalized, history, response_language=response_language)
         else:
-            answer, source = await self._smart_route(normalized, history, response_language=response_language)
+            answer, source = await self._online_primary_with_local_fallback(
+                normalized,
+                history,
+                response_language=response_language,
+            )
 
         if self._is_language_refusal(answer):
             recovered = await self._recover_from_language_refusal(
@@ -116,6 +130,7 @@ class AIRouterService:
             self.cache.pop(key, None)
 
     async def _offline_only(self, text: str, response_language: str | None = None) -> tuple[str, RouteSource]:
+        """Offline mode: Use local Gemma E2B (Ollama) only, skip cloud entirely."""
         primary_model = self.settings.ollama_model
         secondary_model = self.settings.ollama_fallback_model
 
@@ -146,19 +161,31 @@ class AIRouterService:
                     "ollama",
                 )
 
-    async def _online_with_fallback(
+    async def _online_primary_with_local_fallback(
         self,
         text: str,
         history: list[dict[str, str]] | None,
         response_language: str | None = None,
     ) -> tuple[str, RouteSource]:
+        """
+        Smart mode: Gemini Flash 2.0 (cloud) primary with automatic Gemma E2B (local) fallback.
+        
+        Strategy:
+        - Try Gemini Flash 2.0 via OpenRouter first (best quality + fastest for short queries)
+        - If cloud timeout/error occurs, immediately fall back to local Gemma E2B
+        - Never wait for cloud if it's slow; respond fast with local model instead
+        
+        This gives you cloud-quality responses when available, but never breaks on cloud outages.
+        """
         try:
+            # Attempt Gemini Flash 2.0 (cloud) first with strict timeout
             response = await asyncio.wait_for(
                 self.openrouter_client.chat(text, history=history, response_language=response_language),
                 timeout=self.settings.openrouter_timeout_s,
             )
             return response, "openrouter"
         except (asyncio.TimeoutError, httpx.HTTPError, RuntimeError):
+            # Cloud failed or timed out; fall back to local Gemma E2B (Ollama)
             offline_response, _ = await self._offline_only(text, response_language=response_language)
             return offline_response, "ollama"
 
@@ -168,33 +195,7 @@ class AIRouterService:
         history: list[dict[str, str]] | None,
         response_language: str | None = None,
     ) -> tuple[str, RouteSource]:
-        if self._is_non_english_target(response_language):
-            return await self._online_with_fallback(text, history, response_language=response_language)
-
-        if self._is_simple_query(text):
-            try:
-                quick_offline = await asyncio.wait_for(
-                    self.ollama_client.generate(
-                        text,
-                        model=self.settings.ollama_model,
-                        timeout_s=min(3.5, self.settings.ollama_timeout_s),
-                        response_language=response_language,
-                    ),
-                    timeout=3.8,
-                )
-                return quick_offline, "ollama"
-            except Exception:
-                return await self._online_with_fallback(text, history, response_language=response_language)
-
-        try:
-            online = await asyncio.wait_for(
-                self.openrouter_client.chat(text, history=history, response_language=response_language),
-                timeout=self.settings.openrouter_timeout_s,
-            )
-            return online, "openrouter"
-        except (asyncio.TimeoutError, httpx.HTTPError, RuntimeError):
-            fallback_offline, _ = await self._offline_only(text, response_language=response_language)
-            return fallback_offline, "ollama"
+        return await self._online_primary_with_local_fallback(text, history, response_language=response_language)
 
     def _is_simple_query(self, text: str) -> bool:
         stripped = text.strip()

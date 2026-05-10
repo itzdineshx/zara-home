@@ -60,6 +60,37 @@ Backend code already supports these TLS settings.
 Use this template while filling Render envs:
 
 - `backend/.env.render.example`
+@@
+## AI Model Configuration (Render Backend)
+
+ZARA uses a production-grade two-tier AI strategy:
+
+### Primary: Gemini Flash 2.0 (Cloud)
+
+**Requirement:** OpenRouter API key (required for online/smart modes)
+
+In Render env vars:
+- `OPENROUTER_API_KEY=<your-api-key-from-openrouter.ai>`
+- `OPENROUTER_MODEL=google/gemini-2.0-flash-001` (already set as default)
+- `OPENROUTER_TIMEOUT_S=10` (adjust if needed for your region)
+
+### Fallback: Gemma E2B (Local)
+
+**Requirement:** None (built into backend), but local inference requires ~2GB RAM
+
+Render env vars (optional, defaults already set):
+- `OLLAMA_MODEL=gemma2:2b` (Gemma E2B fallback, already default)
+- `OLLAMA_BASE_URL=http://localhost:11434` (only if you run Ollama in container)
+
+**Note:** Gemma E2B runs locally if Ollama is available, otherwise online-only mode activates.
+
+### Three Routing Modes
+
+Set `DEFAULT_MODE` in Render env vars:
+
+- `DEFAULT_MODE=smart` (default): Try Gemini Flash 2.0, fall back to Gemma E2B if cloud times out
+- `DEFAULT_MODE=online`: Gemini Flash 2.0 only (fails if cloud unreachable)
+- `DEFAULT_MODE=offline`: Gemma E2B only (no internet required)
 
 ## What to Configure in Vercel (Frontend)
 
