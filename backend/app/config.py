@@ -40,7 +40,7 @@ def _env_bool(name: str, default: bool) -> bool:
 
 def _env_csv(name: str, default: str) -> list[str]:
     raw = os.getenv(name, default)
-    return [item.strip() for item in raw.split(",") if item.strip()]
+    return [item.strip().strip("\"'").rstrip("/") for item in raw.split(",") if item.strip()]
 
 
 @dataclass(slots=True)
