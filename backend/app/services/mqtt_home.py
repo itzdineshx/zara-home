@@ -65,8 +65,12 @@ class MQTTHomeAutomationController:
         self._last_status: dict[str, Any] | None = None
         self._last_status_at: dt.datetime | None = None
 
+        import uuid
+        base_client_id = settings.home_mqtt_client_id or "zara-backend"
+        unique_client_id = f"{base_client_id}-{uuid.uuid4().hex[:6]}"
+        
         client_kwargs: dict[str, Any] = {
-            "client_id": settings.home_mqtt_client_id,
+            "client_id": unique_client_id,
             "protocol": mqtt.MQTTv311,
             "transport": "tcp",
         }
@@ -92,9 +96,19 @@ class MQTTHomeAutomationController:
         self._client.on_connect = self._on_connect
         self._client.on_disconnect = self._on_disconnect
         self._client.on_message = self._on_message
+        self._client.on_log = self._on_log
 
     def _configure_tls(self) -> None:
         ca_certs = self._resolve_path(self.settings.home_mqtt_tls_ca_cert)
+        
+        if not ca_certs:
+            try:
+                import certifi
+                ca_certs = certifi.where()
+                logger.info("Using certifi CA bundle for MQTT TLS")
+            except ImportError:
+                logger.warning("certifi not found, relying on system CA certs")
+
         certfile = self._resolve_path(self.settings.home_mqtt_tls_certfile)
         keyfile = self._resolve_path(self.settings.home_mqtt_tls_keyfile)
 
@@ -108,6 +122,9 @@ class MQTTHomeAutomationController:
             self._client.tls_insecure_set(True)
 
         logger.info("Home MQTT TLS enabled (insecure=%s)", self.settings.home_mqtt_tls_insecure)
+
+    def _on_log(self, _client: mqtt.Client, _userdata: Any, level: int, buf: str) -> None:
+        logger.info("MQTT Log: %s", buf)
 
     def _resolve_path(self, value: str) -> str:
         raw = value.strip()
