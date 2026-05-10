@@ -67,7 +67,7 @@ export const defaultSettings: ZaraSettings = {
     responseMode: "smart",
     adaptiveReasoning: true,
     proactiveHints: false,
-    continuousLoop: true,
+    continuousLoop: false,
   },
   personality: {
     tone: "balanced",

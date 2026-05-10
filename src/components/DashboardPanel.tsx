@@ -351,7 +351,11 @@ const DashboardPanel = ({
   const runAdvancedAction = async (action: HomeAction) => {
     setActionMessage(`Sending ${action.replace(/_/g, " ")}...`);
     try {
-      await executeHomeAction(action);
+      const result = await executeHomeAction(action);
+      if (result.status !== "executed") {
+        throw new Error(result.error ?? result.detail ?? `Action ${action} was not executed`);
+      }
+
       setActionMessage(`Executed ${action.replace(/_/g, " ")}`);
       await onRefresh();
     } catch (error) {
@@ -369,7 +373,11 @@ const DashboardPanel = ({
     setActionMessage(`Sending ${device.label.toLowerCase()} ${device.on ? "off" : "on"}...`);
 
     try {
-      await executeHomeAction(nextAction);
+      const result = await executeHomeAction(nextAction);
+      if (result.status !== "executed") {
+        throw new Error(result.error ?? result.detail ?? `Action ${nextAction} was not executed`);
+      }
+
       setDevices((previous) => previous.map((item) => (item.id === deviceId ? { ...item, on: !item.on } : item)));
       setActionMessage(`${device.label} turned ${device.on ? "off" : "on"}`);
       await onRefresh();

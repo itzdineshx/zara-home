@@ -196,7 +196,7 @@ Redeploy frontend after setting env variable.
 
 ### 4) Update ESP32 Firmware
 
-In `iot/esp32/zara_home_automation_controller.ino` set:
+Use `iot/esp32/zara_home_automation_full.ino` for home automation control:
 
 - `MQTT_HOST=<your-hivemq-host>`
 - `MQTT_PORT=8883`

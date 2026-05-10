@@ -29,7 +29,10 @@ const DeviceControlPanel = ({ onStatusChange }: DeviceControlPanelProps) => {
     const action = device.on ? device.actionOff : device.actionOn;
 
     try {
-      await executeHomeAction(action);
+      const result = await executeHomeAction(action);
+      if (result.status !== "executed") {
+        throw new Error(result.error ?? result.detail ?? `Action ${action} was not executed`);
+      }
 
       setDevices((prev) =>
         prev.map((d) => (d.id === deviceId ? { ...d, on: !d.on } : d))

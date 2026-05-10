@@ -365,9 +365,11 @@ docker run --env-file backend/.env -p 8000:8000 zara-backend
 
 ## Hardware and ESP32
 
-The ESP32 firmware lives in `iot/esp32/zara_home_automation_controller.ino`.
+For home automation, use `iot/esp32/zara_home_automation_full.ino`.
 
-For complete device automation flows (lights, fan, AC, TV, curtains, and door lock), use `iot/esp32/zara_home_automation_full.ino`.
+The `iot/esp32/zara_home_automation_controller.ino` sketch is a legacy controller for the engine/servo demo and does not implement the home device set.
+
+The full sketch covers lights, fan, AC, TV, curtains, door lock, scenes, and status updates.
 
 It is responsible for:
 

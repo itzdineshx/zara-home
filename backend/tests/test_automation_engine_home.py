@@ -75,3 +75,53 @@ def test_detect_scene_command_maps_to_scene_action():
     assert result is not None
     assert result["action"] == "scene_good_night"
     assert controller.called_actions == ["scene_good_night"]
+
+
+def test_detect_home_command_accepts_raw_toggle_tokens():
+    settings = Settings()
+    controller = StubHomeController()
+    engine = AutomationEngine(
+        settings=settings,
+        mode_state=StubModeState(enabled=True),
+        home_controller=controller,
+    )
+
+    result = asyncio.run(engine.detect_and_execute("tv_off"))
+
+    assert result is not None
+    assert result["action"] == "tv_off"
+    assert result["domain"] == "home"
+    assert controller.called_actions == ["tv_off"]
+
+
+def test_detect_home_command_accepts_status_check_token():
+    settings = Settings()
+    controller = StubHomeController()
+    engine = AutomationEngine(
+        settings=settings,
+        mode_state=StubModeState(enabled=True),
+        home_controller=controller,
+    )
+
+    result = asyncio.run(engine.detect_and_execute("status_check"))
+
+    assert result is not None
+    assert result["action"] == "status_check"
+    assert controller.called_actions == ["status_check"]
+
+
+def test_detect_home_command_normalizes_filler_words_and_punctuation():
+    settings = Settings()
+    controller = StubHomeController()
+    engine = AutomationEngine(
+        settings=settings,
+        mode_state=StubModeState(enabled=True),
+        home_controller=controller,
+    )
+
+    result = asyncio.run(engine.detect_and_execute("Hey Zara, please turn on the lights!"))
+
+    assert result is not None
+    assert result["action"] == "light_on"
+    assert result["domain"] == "home"
+    assert controller.called_actions == ["light_on"]

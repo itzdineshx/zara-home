@@ -267,6 +267,7 @@ class AutomationEngine:
     HOME_DOOR_UNLOCK_RE = re.compile(r"\b(?:unlock|open|unsecure)\s+(?:the\s+)?(?:main\s+)?door\b|\bdoor\s+unlock\b", re.IGNORECASE)
     HOME_ALL_ON_RE = re.compile(r"\b(?:turn|switch|set|enable|start)\s+everything\s+on\b|\ball\s+on\b", re.IGNORECASE)
     HOME_ALL_OFF_RE = re.compile(r"\b(?:turn|switch|set|disable|stop)\s+everything\s+off\b|\ball\s+off\b", re.IGNORECASE)
+    HOME_STATUS_CHECK_RE = re.compile(r"\bstatus\s+check\b|\bcheck\s+status\b|\bhome\s+status\b", re.IGNORECASE)
     HOME_SCENE_GOOD_MORNING_RE = re.compile(r"\b(good\s+morning|morning\s+scene|wake\s+up\s+scene)\b", re.IGNORECASE)
     HOME_SCENE_GOOD_NIGHT_RE = re.compile(r"\b(good\s+night|night\s+scene|sleep\s+scene)\b", re.IGNORECASE)
     HOME_SCENE_AWAY_RE = re.compile(r"\b(away\s+mode|leave\s+home|exit\s+mode)\b", re.IGNORECASE)
@@ -299,6 +300,10 @@ class AutomationEngine:
 
         if self.HOME_ALL_ON_RE.search(normalized):
             result = await self._trigger_home_command("all_on")
+            return self._with_language(result, language_code)
+
+        if self.HOME_STATUS_CHECK_RE.search(normalized):
+            result = await self._trigger_home_command("status_check")
             return self._with_language(result, language_code)
 
         if self.SPOTIFY_MUSIC_RE.search(normalized):
@@ -480,6 +485,8 @@ class AutomationEngine:
             return "fan_off"
         if self.HOME_AC_ON_RE.search(normalized):
             return "ac_on"
+        if self.HOME_STATUS_CHECK_RE.search(normalized):
+            return "status_check"
         if self.HOME_AC_OFF_RE.search(normalized):
             return "ac_off"
         if self.HOME_TV_ON_RE.search(normalized):
@@ -526,6 +533,12 @@ class AutomationEngine:
 
     def _canonicalize_command_text(self, text: str) -> str:
         normalized = " ".join(text.strip().lower().split())
+        normalized = normalized.replace("_", " ").replace("-", " ")
+        normalized = re.sub(r"[^\w\s]", " ", normalized)
+
+        normalized = re.sub(r"^(?:hey|hi|hello|ok|okay|please|kindly)\s+", "", normalized)
+        normalized = re.sub(r"^(?:can you|could you|would you)\s+", "", normalized)
+        normalized = re.sub(r"^zara\s+", "", normalized)
         ordered_replacements = sorted(self.COMMAND_REPLACEMENTS, key=lambda item: len(item[0]), reverse=True)
 
         for source, target in ordered_replacements:

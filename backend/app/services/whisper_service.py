@@ -386,9 +386,24 @@ class WhisperService:
             "condition_on_previous_text": False,
             "task": "transcribe",
         }
+
+        prompt = self._build_initial_prompt(language_hint)
+        if prompt:
+            kwargs["initial_prompt"] = prompt
+
         if language_hint:
             kwargs["language"] = language_hint
         return kwargs
+
+    def _build_initial_prompt(self, language_hint: str | None) -> str | None:
+        if language_hint and language_hint != "en":
+            return None
+
+        return (
+            "Home automation commands: turn on lights, turn off lights, fan on, fan off, "
+            "AC on, AC off, TV on, TV off, open curtains, close curtains, lock door, unlock door, "
+            "all on, all off, good morning, good night, away mode, home mode, status check."
+        )
 
 
 def _guess_audio_suffix(audio_bytes: bytes) -> str:
