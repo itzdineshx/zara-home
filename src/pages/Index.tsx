@@ -705,14 +705,30 @@ const Index = () => {
   const processVoiceChunk = useCallback(
     async (audioChunk: Blob) => {
       let shouldContinueLoop = true;
+      const wasLoopEnabled = continuousLoopRef.current;
 
-      setOrbState("thinking");
-      setRuntimeHint("Processing voice with ZARA backend...");
-      setShowIntroGreeting(false);
+      if (wasLoopEnabled) {
+        setOrbState("thinking");
+        setRuntimeHint("Processing voice with ZARA backend...");
+        setShowIntroGreeting(false);
+      }
 
       try {
         const response = await processVoice(audioChunk, settings.ai.responseMode, settings.voice.language);
         if (!mountedRef.current) return;
+
+        const wakeWord = parseWakeWordTranscript(response.transcript);
+
+        if (!wasLoopEnabled && !wakeWord.wakeWordDetected) {
+          setRuntimeHint("Scanning for 'Hi Zara' or 'Hello Zara'.");
+          shouldContinueLoop = true;
+          return;
+        }
+
+        setShowIntroGreeting(false);
+        if (!wasLoopEnabled && wakeWord.wakeWordDetected) {
+          setOrbState("thinking");
+        }
 
         setAssistantText(response.text);
         setLastTranscript(response.transcript);
@@ -720,9 +736,7 @@ const Index = () => {
         setLastLanguage(response.language);
         setVoiceSignal(response.audio_features);
 
-        const wakeWord = parseWakeWordTranscript(response.transcript);
         const loopStopRequested = shouldStopLoopFromTranscript(response.transcript);
-        const wasLoopEnabled = continuousLoopRef.current;
 
         if (!wasLoopEnabled && !wakeWord.wakeWordDetected) {
           setRuntimeHint("Scanning for 'Hi Zara' or 'Hello Zara'.");
