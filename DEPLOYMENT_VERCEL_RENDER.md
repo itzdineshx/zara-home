@@ -42,9 +42,11 @@ Not recommended for production:
 Set these Render environment variables:
 
 - `OPENROUTER_API_KEY=<your key>`
+- `OPENROUTER_MODEL=google/gemini-2.0-flash-001`
+- `DEFAULT_MODE=smart`
 - `CORS_ORIGINS=https://<your-vercel-domain>`
 - `HOME_MQTT_ENABLED=true`
-- `HOME_MQTT_HOST=<broker host>`
+- `HOME_MQTT_HOST=e5c35c674acb4ec6bdb8514fa465cfa6.s1.eu.hivemq.cloud`
 - `HOME_MQTT_PORT=8883`
 - `HOME_MQTT_USERNAME=<broker username>`
 - `HOME_MQTT_PASSWORD=<broker password>`
@@ -60,7 +62,13 @@ Backend code already supports these TLS settings.
 Use this template while filling Render envs:
 
 - `backend/.env.render.example`
-@@
+
+Render startup must use the backend entrypoint, not the default placeholder command. The repo includes `backend/Procfile` and `render.yaml` with the correct start command:
+
+- `gunicorn -c gunicorn_conf.py app.main:app`
+
+If you created the Render service manually before the blueprint existed, update the service's Start Command or recreate it from `render.yaml` so it picks up the real backend entrypoint.
+
 ## AI Model Configuration (Render Backend)
 
 ZARA uses a production-grade two-tier AI strategy:
@@ -94,9 +102,11 @@ Set `DEFAULT_MODE` in Render env vars:
 
 ## What to Configure in Vercel (Frontend)
 
-Set this Vercel env variable:
+Set this Vercel env variable only:
 
 - `VITE_BACKEND_URL=https://<your-render-backend-domain>`
+
+The frontend does not need MQTT credentials. All MQTT publishing stays inside the backend on Render.
 
 Then redeploy frontend.
 

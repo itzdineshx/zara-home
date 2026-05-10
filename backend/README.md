@@ -73,6 +73,10 @@ Render build command recommendation:
 
 pip install -r backend/requirements-render.txt
 
+Render start command must point at the actual FastAPI app, not the default placeholder. For buildpacks, the backend also includes `backend/Procfile` with:
+
+web: gunicorn -c gunicorn_conf.py app.main:app
+
 ## Docker
 
 Build:
