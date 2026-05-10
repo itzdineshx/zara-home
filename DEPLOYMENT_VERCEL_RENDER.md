@@ -69,6 +69,12 @@ Render startup must use the backend entrypoint, not the default placeholder comm
 
 If you created the Render service manually before the blueprint existed, update the service's Start Command or recreate it from `render.yaml` so it picks up the real backend entrypoint.
 
+The blueprint also includes a backend-only keep-alive cron job that pings `/health` every 10 minutes. Set its `BACKEND_KEEPALIVE_URL` to your backend's public Render URL, for example:
+
+- `BACKEND_KEEPALIVE_URL=https://<your-render-backend-domain>`
+
+This keep-alive job does not touch the frontend or MQTT broker directly; it only requests the backend health endpoint.
+
 ## AI Model Configuration (Render Backend)
 
 ZARA uses a production-grade two-tier AI strategy:

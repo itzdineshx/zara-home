@@ -36,3 +36,16 @@ services:
         value: true
       - key: HOME_MQTT_TLS_INSECURE
         value: false
+
+  - type: cron
+    name: zara-backend-keepalive
+    env: python
+    rootDir: backend
+    schedule: "*/10 * * * *"
+    buildCommand: pip install --upgrade pip && pip install -r requirements-render.txt
+    command: python -c "import os, sys, urllib.request; base_url = os.getenv('BACKEND_KEEPALIVE_URL') or os.getenv('RENDER_EXTERNAL_URL');\nif not base_url:\n    sys.exit(0)\nurl = base_url.rstrip('/') + '/health'; urllib.request.urlopen(url, timeout=5).read()"
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.11
+      - key: BACKEND_KEEPALIVE_URL
+        sync: false
