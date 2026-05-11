@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import sys
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -8,7 +9,28 @@ from dotenv import load_dotenv
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
-load_dotenv(PROJECT_ROOT / ".env")
+
+
+def _load_environment() -> None:
+        env_path = os.getenv("ZARA_ENV_PATH")
+        if env_path:
+                load_dotenv(Path(env_path))
+                return
+
+        packaged_env_path = Path(os.getenv("APPDATA", "")) / "Zara AI" / "backend.env"
+        if packaged_env_path.exists():
+                load_dotenv(packaged_env_path)
+                return
+
+        frozen_env_path = Path(sys.executable).resolve().with_name("backend.env")
+        if frozen_env_path.exists():
+                load_dotenv(frozen_env_path)
+                return
+
+        load_dotenv(PROJECT_ROOT / ".env")
+
+
+_load_environment()
 
 
 def _env_int(name: str, default: int) -> int:

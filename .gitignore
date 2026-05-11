@@ -1,4 +1,6 @@
+# ======================
 # Logs
+# ======================
 logs
 *.log
 npm-debug.log*
@@ -7,12 +9,82 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
+# ======================
+# Frontend/Node Dependencies & Build
+# ======================
 node_modules
 dist
 dist-ssr
 *.local
+out/
 
-# Editor directories and files
+# ======================
+# Python Virtual Environments
+# ======================
+.venv
+venv
+env
+ENV
+.env.local
+.env.*.local
+
+# ======================
+# Python Cache & Build
+# ======================
+__pycache__
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+pip-wheel-metadata/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+.tox/
+.nox/
+.hypothesis/
+
+# ======================
+# Python Analysis Tools
+# ======================
+.mypy_cache/
+.dmypy.json
+dmypy.json
+.pyre/
+.pylint.d/
+.ruff_cache/
+
+# ======================
+# Environment & Config
+# ======================
+.env
+.env.production.local
+.env.development.local
+.env.test.local
+*.pem
+*.key
+
+# ======================
+# IDE & Editor
+# ======================
 .vscode/*
 !.vscode/extensions.json
 .idea
@@ -22,3 +94,85 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+.vs/
+.vscode-test/
+*.code-workspace
+
+# ======================
+# Electron & Native Build
+# ======================
+release/
+out/
+dist-electron/
+
+# ======================
+# OS & System Files
+# ======================
+.DS_Store
+Thumbs.db
+.AppleDouble
+.LSOverride
+*.sublime-workspace
+*.sublime-project
+
+# ======================
+# ML Models & Large Files
+# ======================
+*.pth
+*.pkl
+*.pickle
+*.h5
+*.model
+*.weights
+*.pb
+models/
+
+# ======================
+# Audio & Media Files
+# ======================
+*.wav
+*.mp3
+*.flac
+*.m4a
+*.aac
+*.ogg
+
+# ======================
+# Database & Temporary
+# ======================
+*.db
+*.sqlite
+*.sqlite3
+*.db-wal
+*.db-shm
+/tmp/
+/temp/
+
+# ======================
+# Package Manager Locks (optional - uncomment if not tracking)
+# ======================
+# bun.lockb
+# package-lock.json
+# yarn.lock
+
+# ======================
+# IDE Generated Files
+# ======================
+.project
+.classpath
+.c9/
+*.launch
+.settings/
+.wemostools/
+*.jmconfig
+
+# ======================
+# Runtime & Temporary
+# ======================
+.cache
+.parcel-cache
+.cache-loader
+dist-ssr/
+.vite/
+__pycache__/
+*.egg-info/
