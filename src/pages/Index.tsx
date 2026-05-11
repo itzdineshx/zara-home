@@ -27,6 +27,9 @@ type OrbState = "idle" | "listening" | "thinking" | "speaking";
 
 const AUTO_STOP_MS = 4500;
 const LOOP_RESTART_DELAY_MS = 520;
+const POST_SPEECH_DELAY_MS = 300;
+// Maximum time to wait for TTS playback to complete before forcing restart (ms)
+const POST_SPEECH_MAX_WAIT_MS = 8000;
 const DEFAULT_ASSISTANT_GREETING = "Hello, I'm ZARA.";
 const ALWAYS_ON_LISTENING = true;
 
@@ -353,6 +356,7 @@ const Index = () => {
   const loopRestartTimerRef = useRef<number | null>(null);
   const processVoiceChunkRef = useRef<(audioChunk: Blob, wasPassiveWakeScan: boolean) => Promise<void>>(async () => undefined);
   const isProcessingRef = useRef(false);
+  const isAwaitingResponseRef = useRef(false);
   const mountedRef = useRef(true);
   const continuousLoopRef = useRef(ALWAYS_ON_LISTENING ? true : settings.ai.continuousLoop);
   const previousLoopSettingRef = useRef(ALWAYS_ON_LISTENING ? true : settings.ai.continuousLoop);
@@ -507,6 +511,10 @@ const Index = () => {
 
   const startListening = useCallback(
     async (fromLoop = false, passiveWakeScan = false) => {
+      if (isAwaitingResponseRef.current) {
+        setRuntimeHint("Waiting for the assistant to finish responding...");
+        return;
+      }
       if (isProcessingRef.current) {
         return;
       }
@@ -738,6 +746,8 @@ const Index = () => {
 
   const processVoiceChunk = useCallback(
     async (audioChunk: Blob, wasPassiveWakeScan = false) => {
+      // Block new recordings while the assistant is processing and speaking
+      isAwaitingResponseRef.current = true;
       let shouldContinueLoop = wasPassiveWakeScan || continuousLoopRef.current;
       const wasLoopEnabled = continuousLoopRef.current;
 
@@ -838,21 +848,42 @@ const Index = () => {
         }
       } finally {
         if (mountedRef.current) {
+          isAwaitingResponseRef.current = false;
           setOrbState("idle");
           setIsProcessing(false);
 
           if (shouldContinueLoop) {
             setRuntimeHint(continuousLoopRef.current ? "Continuous loop active..." : "Scanning for wake word...");
             clearLoopRestart();
-            loopRestartTimerRef.current = window.setTimeout(() => {
-              if (!mountedRef.current) {
+            // Schedule restart only after the assistant finished speaking.
+            // We poll for actual playback state (audio element or speechSynthesis) up to a max wait.
+            const deadline = Date.now() + POST_SPEECH_MAX_WAIT_MS;
+            const checkPlaybackAndRestart = () => {
+              if (!mountedRef.current) return;
+              if (isProcessingRef.current || isAwaitingResponseRef.current) {
+                loopRestartTimerRef.current = window.setTimeout(checkPlaybackAndRestart, 200);
                 return;
               }
-              if (isProcessingRef.current) {
+
+              const ttsAudio = ttsAudioRef.current;
+              const speechSynthesisActive = typeof window !== "undefined" && (window.speechSynthesis?.speaking ?? false);
+              const isPlaying = !!ttsAudio || speechSynthesisActive;
+
+              if (isPlaying && Date.now() < deadline) {
+                loopRestartTimerRef.current = window.setTimeout(checkPlaybackAndRestart, 200);
                 return;
               }
-              void startListening(continuousLoopRef.current, !continuousLoopRef.current);
-            }, LOOP_RESTART_DELAY_MS);
+
+              // small buffer after playback ends
+              loopRestartTimerRef.current = window.setTimeout(() => {
+                if (!mountedRef.current) return;
+                if (isProcessingRef.current || isAwaitingResponseRef.current) return;
+                void startListening(continuousLoopRef.current, !continuousLoopRef.current);
+              }, LOOP_RESTART_DELAY_MS + POST_SPEECH_DELAY_MS);
+            };
+
+            // Start checking shortly after finishing speakResponse
+            loopRestartTimerRef.current = window.setTimeout(checkPlaybackAndRestart, 120);
           }
         }
       }
@@ -1084,6 +1115,11 @@ const Index = () => {
     }
 
     setShowIntroGreeting(false);
+
+    if (isAwaitingResponseRef.current || orbState === "thinking" || orbState === "speaking") {
+      setRuntimeHint("Please wait for the assistant to finish responding before recording.");
+      return;
+    }
 
     if (orbState === "listening") {
       setRuntimeHint("Sending voice chunk...");
