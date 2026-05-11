@@ -28,6 +28,7 @@ type OrbState = "idle" | "listening" | "thinking" | "speaking";
 const AUTO_STOP_MS = 4500;
 const LOOP_RESTART_DELAY_MS = 520;
 const DEFAULT_ASSISTANT_GREETING = "Hello, I'm ZARA.";
+const ALWAYS_ON_LISTENING = true;
 
 function isGenericVoiceProgressHint(hint: string): boolean {
   return (
@@ -324,7 +325,13 @@ const Index = () => {
   const [audioStream, setAudioStream] = useState<MediaStream | null>(null);
   const [dashboardOpen, setDashboardOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const [settings, setSettings] = useState<ZaraSettings>(defaultSettings);
+  const [settings, setSettings] = useState<ZaraSettings>({
+    ...defaultSettings,
+    ai: {
+      ...defaultSettings.ai,
+      continuousLoop: ALWAYS_ON_LISTENING ? true : defaultSettings.ai.continuousLoop,
+    },
+  });
   const [assistantText, setAssistantText] = useState("");
   const [showIntroGreeting, setShowIntroGreeting] = useState(true);
   const [lastTranscript, setLastTranscript] = useState("");
@@ -344,11 +351,11 @@ const Index = () => {
   const audioChunksRef = useRef<Blob[]>([]);
   const autoStopTimerRef = useRef<number | null>(null);
   const loopRestartTimerRef = useRef<number | null>(null);
-  const processVoiceChunkRef = useRef<(audioChunk: Blob) => Promise<void>>(async () => undefined);
+  const processVoiceChunkRef = useRef<(audioChunk: Blob, wasPassiveWakeScan: boolean) => Promise<void>>(async () => undefined);
   const isProcessingRef = useRef(false);
   const mountedRef = useRef(true);
-  const continuousLoopRef = useRef(settings.ai.continuousLoop);
-  const previousLoopSettingRef = useRef(settings.ai.continuousLoop);
+  const continuousLoopRef = useRef(ALWAYS_ON_LISTENING ? true : settings.ai.continuousLoop);
+  const previousLoopSettingRef = useRef(ALWAYS_ON_LISTENING ? true : settings.ai.continuousLoop);
   const ttsAudioRef = useRef<HTMLAudioElement | null>(null);
 
   const getPreferredVoice = useCallback(async (languageTag: string): Promise<SpeechSynthesisVoice | null> => {
@@ -513,6 +520,33 @@ const Index = () => {
         return;
       }
 
+      // Quick diagnostics: ensure we're in a secure context (or localhost) and microphone permission isn't denied.
+      try {
+        const hostname = window.location.hostname;
+        if (!window.isSecureContext && hostname !== "localhost" && hostname !== "127.0.0.1") {
+          setRuntimeHint("Microphone requires a secure context. Open the app at http://localhost:8081 or enable HTTPS.");
+          return;
+        }
+
+        if (navigator.permissions && typeof navigator.permissions.query === "function") {
+          // Some browsers require 'microphone' permission name; cast to any to avoid TS mismatch.
+          try {
+            // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+            // @ts-ignore
+            const status = await navigator.permissions.query({ name: "microphone" });
+            if (status && status.state === "denied") {
+              setRuntimeHint("Microphone access is blocked by browser permissions. Allow microphone for this site.");
+              return;
+            }
+          } catch (err) {
+            // ignore permission API errors — continue to request getUserMedia which will surface a prompt/error
+            console.debug("Permission query failed", err);
+          }
+        }
+      } catch (err) {
+        console.debug("Microphone diagnostics failed", err);
+      }
+
       stopTtsAudio();
       window.speechSynthesis?.cancel();
       clearLoopRestart();
@@ -556,7 +590,7 @@ const Index = () => {
             return;
           }
 
-          void processVoiceChunkRef.current(chunk);
+          void processVoiceChunkRef.current(chunk, passiveWakeScan);
         };
 
         recorder.start();
@@ -703,8 +737,8 @@ const Index = () => {
   );
 
   const processVoiceChunk = useCallback(
-    async (audioChunk: Blob) => {
-      let shouldContinueLoop = true;
+    async (audioChunk: Blob, wasPassiveWakeScan = false) => {
+      let shouldContinueLoop = wasPassiveWakeScan || continuousLoopRef.current;
       const wasLoopEnabled = continuousLoopRef.current;
 
       if (wasLoopEnabled) {
@@ -719,14 +753,14 @@ const Index = () => {
 
         const wakeWord = parseWakeWordTranscript(response.transcript);
 
-        if (!wasLoopEnabled && !wakeWord.wakeWordDetected) {
+        if (wasPassiveWakeScan && !wasLoopEnabled && !wakeWord.wakeWordDetected) {
           setRuntimeHint("Scanning for 'Hi Zara' or 'Hello Zara'.");
           shouldContinueLoop = true;
           return;
         }
 
         setShowIntroGreeting(false);
-        if (!wasLoopEnabled && wakeWord.wakeWordDetected) {
+        if (wasPassiveWakeScan && !wasLoopEnabled && wakeWord.wakeWordDetected) {
           setOrbState("thinking");
         }
 
@@ -736,13 +770,7 @@ const Index = () => {
         setLastLanguage(response.language);
         setVoiceSignal(response.audio_features);
 
-        const loopStopRequested = shouldStopLoopFromTranscript(response.transcript);
-
-        if (!wasLoopEnabled && !wakeWord.wakeWordDetected) {
-          setRuntimeHint("Scanning for 'Hi Zara' or 'Hello Zara'.");
-          shouldContinueLoop = true;
-          return;
-        }
+        const loopStopRequested = ALWAYS_ON_LISTENING ? false : shouldStopLoopFromTranscript(response.transcript);
 
         if (loopStopRequested && wasLoopEnabled) {
           continuousLoopRef.current = false;
@@ -757,7 +785,7 @@ const Index = () => {
           return;
         }
 
-        if (wakeWord.wakeWordDetected && !wasLoopEnabled) {
+        if (wasPassiveWakeScan && wakeWord.wakeWordDetected && !wasLoopEnabled) {
           continuousLoopRef.current = true;
           setSettings((previous) => ({
             ...previous,
@@ -788,24 +816,26 @@ const Index = () => {
         const didSpeak = await speakResponse(response.text, response.language, isExecutedHomeAction);
 
         if (!didSpeak && continuousLoopRef.current) {
-          continuousLoopRef.current = false;
-          setSettings((previous) => ({
-            ...previous,
-            ai: {
-              ...previous.ai,
-              continuousLoop: false,
-            },
-          }));
           setRuntimeHint(localizeSpeechUnavailableHint(response.language));
-          void speakResponse("Voice output failed. Loop mode stopped.", "en");
+          void speakResponse("Voice output failed. Continuing always-on listening mode.", "en");
         }
       } catch (error) {
         if (!mountedRef.current) return;
 
         setShowIntroGreeting(false);
         const message = error instanceof Error ? error.message : "Voice request failed";
-        setAssistantText("I couldn't process that voice request. Please try again.");
-        setRuntimeHint(message);
+        const noSpeechDetected =
+          message.includes("Could not detect speech") ||
+          message.includes("Audio file is empty") ||
+          message.includes("Unprocessable Entity");
+
+        if (wasPassiveWakeScan && noSpeechDetected) {
+          setRuntimeHint("Scanning for wake word...");
+          shouldContinueLoop = true;
+        } else {
+          setAssistantText("I couldn't process that voice request. Please try again.");
+          setRuntimeHint(message);
+        }
       } finally {
         if (mountedRef.current) {
           setOrbState("idle");
@@ -864,6 +894,17 @@ const Index = () => {
   }, [clearAutoStop, clearLoopRestart, releaseAudioStream, startListening, stopRecording, stopTtsAudio]);
 
   useEffect(() => {
+    if (ALWAYS_ON_LISTENING && !settings.ai.continuousLoop) {
+      setSettings((previous) => ({
+        ...previous,
+        ai: {
+          ...previous.ai,
+          continuousLoop: true,
+        },
+      }));
+      return;
+    }
+
     const wasEnabled = previousLoopSettingRef.current;
     const isEnabled = settings.ai.continuousLoop;
 
@@ -1045,19 +1086,7 @@ const Index = () => {
     setShowIntroGreeting(false);
 
     if (orbState === "listening") {
-      if (settings.ai.continuousLoop) {
-        continuousLoopRef.current = false;
-        setSettings((previous) => ({
-          ...previous,
-          ai: {
-            ...previous.ai,
-            continuousLoop: false,
-          },
-        }));
-        setRuntimeHint(localizeLoopStoppedHint(lastLanguage));
-      } else {
-        setRuntimeHint("Sending voice chunk...");
-      }
+      setRuntimeHint("Sending voice chunk...");
       setIsProcessing(true);
       stopRecording();
       return;
@@ -1079,10 +1108,8 @@ const Index = () => {
   }, [
     clearAutoStop,
     clearLoopRestart,
-    lastLanguage,
     orbState,
     releaseAudioStream,
-    settings.ai.continuousLoop,
     startListening,
     stopTtsAudio,
     stopRecording,
@@ -1159,7 +1186,19 @@ const Index = () => {
           }
         }}
         settings={settings}
-        onSettingsChange={setSettings}
+        onSettingsChange={(next) =>
+          setSettings(
+            ALWAYS_ON_LISTENING
+              ? {
+                  ...next,
+                  ai: {
+                    ...next.ai,
+                    continuousLoop: true,
+                  },
+                }
+              : next,
+          )
+        }
       />
     </div>
   );

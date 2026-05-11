@@ -11,27 +11,18 @@ DetectorFactory.seed = 0
 
 _SUPPORTED_LANGUAGE_CODES: set[str] = {
     "en",
-    "hi",
     "ta",
-    "te",
-    "ml",
 }
 
 
 _LANGUAGE_NAMES: dict[str, str] = {
     "en": "English",
-    "hi": "Hindi",
-    "ml": "Malayalam",
     "ta": "Tamil",
-    "te": "Telugu",
 }
 
 
 _SCRIPT_BUCKETS: dict[str, tuple[tuple[int, int], ...]] = {
-    "deva": ((0x0900, 0x097F),),  # Hindi Devanagari
     "ta": ((0x0B80, 0x0BFF),),
-    "te": ((0x0C00, 0x0C7F),),
-    "ml": ((0x0D00, 0x0D7F),),
 }
 
 
@@ -39,81 +30,53 @@ _TRANSLIT_HINTS: dict[str, tuple[str, ...]] = {
     "ta": (
         "vanakkam",
         "vanakam",
+        "vannakam",
+        "anna",
+        "akka",
         "nandri",
+        "nanri",
+        "romba",
+        "seri",
+        "sari",
         "naan",
         "ungal",
+        "unga",
+        "ungalukku",
         "epadi",
         "eppadi",
+        "enna",
+        "ennada",
+        "ennanga",
         "irukk",
         "irukken",
         "irukeenga",
         "irukenga",
         "irukinga",
         "irukkinga",
+        "saaptiya",
         "saptiya",
         "saptingla",
         "thira",
+        "thera",
         "thirakka",
+        "moodu",
+        "moodu",
         "pannu",
+        "seyy",
+        "seiya",
+        "podu",
+        "vech",
+        "niruthu",
         "niruthu",
         "venum",
-        "inga",
-    ),
-    "te": (
-        "namaskaram",
-        "meeru",
-        "nenu",
-        "ela",
-        "ela unnaru",
-        "ela unnavu",
-        "unnaru",
-        "bagunn",
-        "bagunnara",
-        "avuna",
-        "chey",
-        "cheyyi",
-        "cheppu",
-        "aapu",
-        "ippudu",
-        "kavali",
-        "vinali",
-    ),
-    "ml": (
-        "namaskaram",
-        "sughamano",
-        "sukhamaano",
-        "sugamano",
-        "njan",
-        "ningal",
-        "engane",
-        "enthaanu",
-        "cheyyu",
-        "nirthu",
+        "vendum",
+        "venuma",
         "venam",
-        "thudangu",
-        "kelkku",
-        "ennu",
+        "inga",
+        "illai",
+        "illa",
+        "aama",
     ),
-    "hi": (
-        "namaste",
-        "kaise",
-        "kaise ho",
-        "kaise hai",
-        "kaise hain",
-        "aap",
-        "mujhe",
-        "kya",
-        "karo",
-        "chalu",
-        "band",
-        "suno",
-        "kripya",
-    ),
-}
-
-
-_DEVANAGARI_HINTS: dict[str, tuple[str, ...]] = {
-    "hi": ("है", "क्या", "आप", "मैं", "और", "करो", "चालू", "बंद", "सुनो"),
 }
 
 
@@ -135,16 +98,13 @@ class LanguageService:
         script_code, script_ratio = self._detect_script_hint(normalized)
         script_char_count = self._count_script_chars(normalized, script_code) if script_code else 0
         if script_code and (script_ratio >= 0.22 or script_char_count >= 3):
-            if script_code == "deva":
-                script_code = self._resolve_devanagari_language(normalized)
             if script_code in _SUPPORTED_LANGUAGE_CODES:
                 return self._build_result(script_code, min(0.99, 0.65 + script_ratio / 2.0))
 
         score_board: dict[str, float] = defaultdict(float)
 
         if script_code:
-            boosted_script_code = script_code if script_code != "deva" else self._resolve_devanagari_language(normalized)
-            score_board[boosted_script_code] += 0.28 + (script_ratio * 0.35)
+            score_board[script_code] += 0.28 + (script_ratio * 0.35)
 
         translit_code, translit_hits = self._detect_transliteration_hint(normalized)
 
@@ -263,21 +223,6 @@ class LanguageService:
 
         return (latin_count / len(alpha_chars)) >= 0.75
 
-    def _resolve_devanagari_language(self, text: str) -> str:
-        hint_scores: dict[str, int] = defaultdict(int)
-
-        for code, tokens in _DEVANAGARI_HINTS.items():
-            for token in tokens:
-                if token in text:
-                    hint_scores[code] += 1
-
-        if hint_scores:
-            best_code, best_count = max(hint_scores.items(), key=lambda item: item[1])
-            if best_count > 0:
-                return best_code
-
-        return "hi"
-
     def _normalize_text(self, text: str) -> str:
         squashed = " ".join(text.strip().split())
         return "".join(char for char in squashed if char.isalpha() or char.isspace())
@@ -287,9 +232,9 @@ class LanguageService:
         aliases = {
             "en-us": "en",
             "en-gb": "en",
-            "gom": "hi",
-            "mai": "hi",
-            "bho": "hi",
+            "ta-in": "ta",
+            "tamil": "ta",
+            "english": "en",
         }
         return aliases.get(lowered, lowered)
 

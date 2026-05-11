@@ -110,6 +110,9 @@ class Settings:
     home_mqtt_retry_delay_ms: int = _env_int("HOME_MQTT_RETRY_DELAY_MS", 250)
     home_mqtt_publish_timeout_s: float = _env_float("HOME_MQTT_PUBLISH_TIMEOUT_S", 1.5)
 
+    # Development fallback: when true, MQTT publishes are simulated locally
+    # This allows dashboard toggles to behave as executed without a real broker.
+    home_mqtt_dev_mode: bool = _env_bool("HOME_MQTT_DEV_MODE", False)
     home_temperature_default: int = _env_int("HOME_TEMPERATURE_DEFAULT", 24)
     home_fan_speed_step: int = _env_int("HOME_FAN_SPEED_STEP", 10)
     home_fan_speed_min: int = _env_int("HOME_FAN_SPEED_MIN", 0)

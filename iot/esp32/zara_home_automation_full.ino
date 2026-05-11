@@ -86,12 +86,12 @@ int clampTemp(int value) {
 
 void applyFanPwm() {
   const int duty = fanOn ? fanLevel : 0;
-  ledcWrite(FAN_PWM_CHANNEL, duty);
+  ledcWrite(PIN_FAN, duty);
 }
 
 void applyAcPwm() {
   const int duty = acOn ? acLevel : 0;
-  ledcWrite(AC_PWM_CHANNEL, duty);
+  ledcWrite(PIN_AC, duty);
 }
 
 void applyDigitalOutputs() {
@@ -108,7 +108,7 @@ void applyDigitalOutputs() {
 }
 
 void publishStatus(const char* status) {
-  StaticJsonDocument<512> doc;
+  JsonDocument doc;
   doc["status"] = status;
   doc["light_on"] = lightOn;
   doc["fan_on"] = fanOn;
@@ -373,7 +373,7 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
     return;
   }
 
-  StaticJsonDocument<384> doc;
+  JsonDocument doc;
   DeserializationError err = deserializeJson(doc, payload, length);
   if (err) {
     publishStatus("bad_json");
@@ -465,10 +465,8 @@ void setup() {
   pinMode(PIN_AC, OUTPUT);
   pinMode(PIN_TV, OUTPUT);
 
-  ledcSetup(FAN_PWM_CHANNEL, PWM_FREQ, PWM_BITS);
-  ledcAttachPin(PIN_FAN, FAN_PWM_CHANNEL);
-  ledcSetup(AC_PWM_CHANNEL, PWM_FREQ, PWM_BITS);
-  ledcAttachPin(PIN_AC, AC_PWM_CHANNEL);
+  ledcAttach(PIN_FAN, PWM_FREQ, PWM_BITS);
+  ledcAttach(PIN_AC, PWM_FREQ, PWM_BITS);
 
   curtainServo.setPeriodHertz(50);
   doorServo.setPeriodHertz(50);

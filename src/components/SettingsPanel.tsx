@@ -215,18 +215,11 @@ const SettingsPanel = ({ open, settings, onOpenChange, onSettingsChange }: Setti
                   className="data-[state=checked]:bg-cyan-300/85 data-[state=unchecked]:bg-white/15"
                 />
               </SettingRow>
-              <SettingRow icon={Workflow} label="Continuous Loop" hint="Auto-listen after each response">
+              <SettingRow icon={Workflow} label="Continuous Loop" hint="Always-on listening is enabled">
                 <Switch
                   checked={settings.ai.continuousLoop}
-                  onCheckedChange={(checked) =>
-                    update({
-                      ...settings,
-                      ai: {
-                        ...settings.ai,
-                        continuousLoop: checked,
-                      },
-                    })
-                  }
+                  disabled
+                  onCheckedChange={() => undefined}
                   className="data-[state=checked]:bg-cyan-300/85 data-[state=unchecked]:bg-white/15"
                 />
               </SettingRow>

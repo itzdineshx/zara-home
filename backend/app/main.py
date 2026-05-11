@@ -46,10 +46,7 @@ logger = logging.getLogger(__name__)
 
 _SUPPORTED_RESPONSE_LANGUAGE_NAMES: dict[str, str] = {
     "en": "English",
-    "hi": "Hindi",
     "ta": "Tamil",
-    "te": "Telugu",
-    "ml": "Malayalam",
 }
 
 
@@ -63,18 +60,9 @@ def _normalize_preferred_language(language: str | None) -> str | None:
         "en-us": "en",
         "en-gb": "en",
         "english": "en",
-        "hi": "hi",
-        "hi-in": "hi",
-        "hindi": "hi",
         "ta": "ta",
         "ta-in": "ta",
         "tamil": "ta",
-        "te": "te",
-        "te-in": "te",
-        "telugu": "te",
-        "ml": "ml",
-        "ml-in": "ml",
-        "malayalam": "ml",
     }
 
     normalized = aliases.get(lowered, lowered)
@@ -86,18 +74,24 @@ def _resolve_response_language(
     preferred_code: str | None,
 ) -> LanguageDetectionResult:
     if not preferred_code:
-        return detected
+        if detected.code == "ta":
+            return detected
+        return LanguageDetectionResult(
+            code="en",
+            name=_SUPPORTED_RESPONSE_LANGUAGE_NAMES["en"],
+            confidence=max(0.8, detected.confidence),
+        )
 
-    # Honor explicit non-English user preference for reply language.
-    if preferred_code != "en":
+    # Honor explicit Tamil preference for reply language.
+    if preferred_code == "ta":
         return LanguageDetectionResult(
             code=preferred_code,
             name=_SUPPORTED_RESPONSE_LANGUAGE_NAMES[preferred_code],
             confidence=max(0.8, detected.confidence),
         )
 
-    # When UI is left on default English, still allow clear detected Indian language replies.
-    if detected.code in {"hi", "ta", "te", "ml"} and detected.confidence >= 0.7:
+    # When UI is set to English, still allow strong Tamil detections.
+    if detected.code == "ta" and detected.confidence >= 0.7:
         return detected
 
     return LanguageDetectionResult(

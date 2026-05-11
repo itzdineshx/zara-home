@@ -197,6 +197,26 @@ class MQTTHomeAutomationController:
                 "error": "Home MQTT is disabled by configuration",
             }
 
+        # Development fallback: simulate successful publish when dev mode is enabled.
+        # This helps local frontend testing when a real MQTT broker is not reachable.
+        if getattr(self.settings, "home_mqtt_dev_mode", False):
+            logger.info("HOME_MQTT_DEV_MODE active — simulating home action %s", normalized_action)
+            # Update last status snapshot as if the device responded
+            with self._state_lock:
+                self._last_status = {"simulated": True, "action": command["action"], "value": command.get("value")}
+                self._last_status_at = dt.datetime.now(dt.timezone.utc)
+
+            return {
+                "type": normalized_action,
+                "action": command["action"],
+                "value": command.get("value"),
+                "domain": "home",
+                "status": "executed",
+                "target": f"mqtt://{self.settings.home_mqtt_host}:{self.settings.home_mqtt_port}",
+                "topic": self.settings.home_mqtt_control_topic,
+                "connected": False,
+            }
+
         try:
             await asyncio.to_thread(self._publish_json, message)
             return {
