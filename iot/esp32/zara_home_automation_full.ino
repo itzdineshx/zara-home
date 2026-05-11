@@ -5,19 +5,19 @@
 #include <ESP32Servo.h>
 
 // WiFi credentials
-const char* WIFI_SSID = "Zayma";
-const char* WIFI_PASSWORD = "reddragon";
+const char* WIFI_SSID = "zoro5g";
+const char* WIFI_PASSWORD = "098098098";
 
 // MQTT broker (HiveMQ Cloud)
 const char* MQTT_HOST = "e5c35c674acb4ec6bdb8514fa465cfa6.s1.eu.hivemq.cloud";
 const uint16_t MQTT_PORT = 8883;
-const char* MQTT_USER = "Zayma";
+const char* MQTT_USER = "zaraai";
 const char* MQTT_PASSWORD = "Reddragon123";
 const char* TOPIC_CONTROL = "zara/home/control";
 const char* TOPIC_STATUS = "zara/home/status";
 
 // TLS options (set MQTT_USE_TLS=true for port 8883 brokers)
-const bool MQTT_USE_TLS = false;
+const bool MQTT_USE_TLS = true;
 const char* MQTT_ROOT_CA = "";
 
 // Device pins (update for your relay board and wiring)
